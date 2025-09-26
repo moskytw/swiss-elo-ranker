@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>二選一排序大對決</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    :root{
+      --bg-0:#070a12; --bg-1:#0a0f18; --bg-2:#0b111b;
+      --aurora-a:rgba(56,189,248,.22);
+      --aurora-b:rgba(99,102,241,.20);
+      --aurora-c:rgba(255,255,255,.10);
+      --glass: rgba(255,255,255,.06);
+      --glass-border: rgba(255,255,255,.18);
+      --glass-shine: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.04));
+      --txt:#e7e7ea; --txt-d:#a6abbb;
+
+      --gold-1:#fff7d1; --gold-2:#ffe08a; --gold-3:#f3b94a; --gold-4:#d28c2d;
+    }
+
+    html,body{height:100%}
+    body{
+      margin:0; color:var(--txt);
+      background:
+        radial-gradient(1400px 900px at 60% -20%, var(--bg-2), transparent 55%),
+        radial-gradient(1600px 1100px at 40% 120%, var(--bg-1), transparent 60%),
+        radial-gradient(2000px 1200px at 50% 50%, var(--bg-0), var(--bg-1) 45%, var(--bg-2) 100%);
+    }
+    body::before{content:""; position:fixed; inset:-25%; pointer-events:none; filter: blur(90px) saturate(1.05); background:
+      radial-gradient(50% 38% at 20% 8%, var(--aurora-a), transparent 60%),
+      radial-gradient(45% 35% at 75% 12%, var(--aurora-b), transparent 60%),
+      radial-gradient(55% 45% at 50% 100%, var(--aurora-c), transparent 65%);
+      opacity:.55; mix-blend-mode: screen;}
+
+    .glass{ position:relative; border-radius: 1rem; background: var(--glass); border:1px solid var(--glass-border); backdrop-filter: blur(12px) saturate(1.15); box-shadow: 0 12px 30px rgba(0,0,0,.45), inset 0 1px rgba(255,255,255,.06); overflow:hidden; }
+    .glass::before{ content:""; position:absolute; inset:0; background: var(--glass-shine); pointer-events:none; opacity:.35; }
+
+    .btn-primary{ border-radius: 1rem; padding:.85rem 1.35rem; font-weight:700; color:#0b1020; background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.78)); box-shadow: 0 8px 24px rgba(255,255,255,.18), inset 0 1px 0 rgba(255,255,255,.9); }
+    .btn-secondary{ border-radius: 1rem; padding:.75rem 1.25rem; font-weight:600; background: transparent; color: var(--txt); border:1px solid rgba(255,255,255,.18); }
+
+    .bar{ height:8px; border-radius:9999px; background: rgba(255,255,255,.08); overflow:hidden}
+    .bar>div{ height:100%; background: linear-gradient(90deg, rgba(255,255,255,.75), rgba(255,255,255,.35)); box-shadow: 0 0 18px rgba(255,255,255,.25); }
+
+    .rank-badge{
+      min-width:2.4rem; height:2.2rem; padding:0 .4rem;
+      border-radius:0.85rem;
+      display:inline-flex; align-items:center; justify-content:center;
+      font-weight:800; font-variant-numeric: tabular-nums;
+      border:1px solid rgba(255,255,255,.35);
+      background: linear-gradient(180deg, rgba(255,255,255,.5), rgba(255,255,255,.12));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+      backdrop-filter: blur(8px) saturate(1.1);
+      position:relative; overflow:hidden;
+    }
+    .rank-badge.gold{
+      color:#1a1206;
+      border:1px solid rgba(255,255,255,.6);
+      background:
+        radial-gradient(120% 140% at 20% 0%, var(--gold-1), transparent 40%),
+        linear-gradient(180deg, var(--gold-2), var(--gold-3) 55%, var(--gold-4) 100%);
+      box-shadow:
+        0 10px 26px rgba(243,185,74,.35),
+        0 2px 8px rgba(0,0,0,.35),
+        inset 0 1px 0 rgba(255,255,255,.85),
+        inset 0 -8px 18px rgba(210,140,45,.35);
+      text-shadow: 0 1px 0 rgba(255,255,255,.6), 0 0 10px rgba(255,223,128,.35);
+    }
+    @keyframes sweepGlow{
+      0%{ transform: translateX(-120%) rotate(18deg); opacity:.0;}
+      10%{ opacity:.55;}
+      60%{ transform: translateX(130%) rotate(18deg); opacity:.55;}
+      100%{ transform: translateX(130%) rotate(18deg); opacity:0;}
+    }
+    .rank-badge.gold::after{
+      content:""; position:absolute; top:-40%; bottom:-40%; left:-40%; width:65%;
+      background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.65) 45%, rgba(255,255,255,0) 100%);
+      filter: blur(1px); pointer-events:none;
+      animation: sweepGlow 3.2s linear infinite;
+    }
+
+    .rank-num{ font-weight:800; font-variant-numeric: tabular-nums; min-width:1.75rem; text-align:right; }
+    .rank-1{ color:#ffffff; }
+    .rank-2{ color:rgba(255,255,255,.9); }
+    .rank-3{ color:rgba(255,255,255,.8); }
+    .rank-else{ color:rgba(255,255,255,.6); }
+
+    .choice-btn { position:relative; overflow:hidden; transition: transform .18s cubic-bezier(.2,.7,.2,1), box-shadow .18s ease; box-shadow: 0 14px 28px rgba(0,0,0,.40); will-change: transform; }
+    .choice-btn:hover { transform: scale(1.02); box-shadow: 0 20px 36px rgba(0,0,0,.55); }
+    .choice-btn:active { transform: scale(.985); box-shadow: 0 10px 20px rgba(0,0,0,.38); }
+    .choice-btn::after{ content:""; position:absolute; inset:-50%; background: radial-gradient(circle at center, rgba(255,255,255,.25), rgba(255,255,255,0) 60%); transform: scale(0); opacity:0; transition: transform .35s ease, opacity .35s ease; pointer-events:none; }
+    .choice-btn:active::after{ transform: scale(1); opacity:.8; }
+
+    @keyframes bump { 0%{transform:scale(1)} 40%{transform:scale(1.04)} 100%{transform:scale(1)} }
+    @keyframes flash { 0%{ background-color:rgba(255,255,255,.14) } 100%{ background-color:transparent } }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    .li-changed{ animation: bump .28s ease, flash .45s ease; border-radius:.5rem; }
+    .fade-in { animation: fadeIn .25s ease both; }
+
+    .flip-transition { transition: transform 320ms cubic-bezier(.2,.8,.2,1); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="env,react">
+    const { useMemo, useState, useEffect, useRef, useLayoutEffect } = React;
+
+    // ---- Data ----
+    const PLAYERS = [
+      { id: 'apple', name: '蘋果', emoji: '🍎' },
+      { id: 'banana', name: '香蕉', emoji: '🍌' },
+      { id: 'mango', name: '芒果', emoji: '🥭' },
+      { id: 'watermelon', name: '西瓜', emoji: '🍉' },
+      { id: 'pineapple', name: '鳳梨', emoji: '🍍' },
+      { id: 'grape', name: '葡萄', emoji: '🍇' },
+      { id: 'strawberry', name: '草莓', emoji: '🍓' },
+      { id: 'orange', name: '橘子', emoji: '🍊' },
+      { id: 'melon', name: '哈密瓜', emoji: '🍈' },
+      { id: 'kiwi', name: '奇異果', emoji: '🥝' },
+      { id: 'peach', name: '水蜜桃', emoji: '🍑' },
+      { id: 'pear', name: '水梨', emoji: '🍐' },
+    ];
+
+    // ---- Elo helpers ----
+    const R0 = 1500;  // 初始分數
+    const K  = 24*5;  // 更新係數
+    function expectedScore(ra, rb){ return 1 / (1 + Math.pow(10, (rb - ra) / 400)); }
+    function updateElo(ra, rb, sa){
+      const ea = expectedScore(ra, rb); const eb = 1 - ea; const sb = 1 - sa;
+      return [ ra + K * (sa - ea), rb + K * (sb - eb) ];
+    }
+    const shuffle = (arr)=>{ const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]] } return a };
+
+    // ---- Swiss helpers ----
+    // 每位：{id,name,emoji,rating,games,points,opponents:[],hadBye}
+    function initialPlayers(){
+      return shuffle(PLAYERS).map(p=> ({...p, rating:R0, games:0, points:0, opponents:[], hadBye:false}));
+    }
+
+    // 配對排序：積分 → Elo → 名字
+    function cmpForPairing(a,b){
+      if(b.points !== a.points) return b.points - a.points;
+      if(b.rating !== a.rating) return b.rating - a.rating;
+      return a.name.localeCompare(b.name,'zh-Hant');
+    }
+
+    function makeSwissPairings(players){
+      const sorted = players.slice().sort(cmpForPairing);
+      const used = new Set();
+      const pairings = [];
+
+      // 奇數給 BYE（優先給尚未 BYE 且分數/Elo 較低者）
+      if(sorted.length % 2 === 1){
+        const byeIdx = sorted
+          .map((p,i)=>({p,i}))
+          .filter(x=> !x.p.hadBye)
+          .sort((x,y)=> (x.p.points - y.p.points) || (x.p.rating - y.p.rating))
+          [0]?.i ?? (sorted.length-1);
+        const byeP = sorted.splice(byeIdx,1)[0];
+        pairings.push({ aId: byeP.id, bId: null, bye: true });
+        used.add(byeP.id);
+      }
+
+      // 同分內配對
+      const groups = {};
+      for(const p of sorted){ (groups[p.points] ||= []).push(p); }
+
+      const spill = [];
+      for(const key of Object.keys(groups).sort((a,b)=> b-a)){
+        const g = groups[key];
+        for(let i=0;i<g.length;i++){
+          const A = g[i];
+          if(used.has(A.id)) continue;
+          let found = -1;
+          for(let j=i+1;j<g.length;j++){
+            const B = g[j];
+            if(used.has(B.id)) continue;
+            if(!A.opponents.includes(B.id)) { found = j; break; }
+          }
+          if(found>=0){
+            const B = g[found];
+            used.add(A.id); used.add(B.id);
+            pairings.push({ aId:A.id, bId:B.id });
+          }else{
+            spill.push(A);
+          }
+        }
+      }
+
+      // 跨組貪婪
+      for(const A of spill){
+        if(used.has(A.id)) continue;
+        let candidate = null;
+        for(const B of sorted){
+          if(used.has(B.id) || B.id===A.id) continue;
+          if(!A.opponents.includes(B.id)) { candidate = B; break; }
+        }
+        if(candidate){ used.add(A.id); used.add(candidate.id); pairings.push({ aId:A.id, bId:candidate.id }); }
+      }
+      return pairings;
+    }
+
+    // ---- Elo 期望勝率（vs 全場，不含自己）----
+    function buildEloExpectedMap(list){
+      const map = {};
+      for(let i=0;i<list.length;i++){
+        const self = list[i];
+        let sum = 0, cnt = 0;
+        for(let j=0;j<list.length;j++){
+          if(i===j) continue;
+          sum += expectedScore(self.rating, list[j].rating);
+          cnt++;
+        }
+        map[self.id] = cnt ? (sum / cnt) : 0.5;
+      }
+      return map;
+    }
+
+    // 數值小工具：把 0.5 進位的積分顯示得漂亮
+    const fmtPts = (x)=> {
+      const n = Math.round(x*2)/2;
+      return Number.isInteger(n) ? String(n) : n.toFixed(1);
+    };
+
+    // ---- UI Component ----
+    function PlayerRanker(){
+      // phases: intro | duel | finalizing | result
+      const [phase, setPhase] = useState('intro');
+      const [players, setPlayers] = useState(initialPlayers);
+
+      const [target, setTarget] = useState(-1);
+
+      // 配對佇列與指標
+      const [pairQueue, setPairQueue] = useState([]); // [{aId,bId,bye?}]
+      const pairIndexRef = useRef(0);
+
+      // 已比較次數
+      const compareCountRef = useRef(0);
+
+      // 當前對局
+      const currentPair = useMemo(()=> pairQueue[pairIndexRef.current] || null, [pairQueue]);
+
+      // Elo 期望勝率映射
+      const eloExpMap = useMemo(()=> buildEloExpectedMap(players), [players]);
+
+      // ---- 排名：即時（瑞士分優先） ----
+      const byLiveStanding = useMemo(()=> {
+        const arr = players.slice();
+        arr.sort((a,b)=>{
+          if(b.points !== a.points) return b.points - a.points;
+          const wrA = eloExpMap[a.id] ?? 0.5;
+          const wrB = eloExpMap[b.id] ?? 0.5;
+          if(wrB !== wrA) return wrB - wrA;
+          if(b.rating !== a.rating) return b.rating - a.rating;
+          return a.name.localeCompare(b.name, 'zh-Hant');
+        });
+        return arr;
+      }, [players, eloExpMap]);
+
+      // ---- 排名：最終（Elo 優先） ----
+      const byFinalStanding = useMemo(()=> {
+        const arr = players.slice();
+        arr.sort((a,b)=>{
+          if(b.rating !== a.rating) return b.rating - a.rating;      // Elo 第一
+          const wrA = eloExpMap[a.id] ?? 0.5;
+          const wrB = eloExpMap[b.id] ?? 0.5;
+          if(wrB !== wrA) return wrB - wrA;                           // 期望勝率 第二
+          if(b.points !== a.points) return b.points - a.points;       // 瑞士分 第三
+          return a.name.localeCompare(b.name, 'zh-Hant');
+        });
+        return arr;
+      }, [players, eloExpMap]);
+
+      // 進度計算
+      function computeProgressLinear(){
+        const played = compareCountRef.current || 0;
+        const progress = Math.max(0, Math.min(1, target ? played / target : 0));
+        return { played, progress, target };
+      }
+      function shouldStop(){ return compareCountRef.current >= target; }
+
+      // 柔和過場：先進入 finalizing，再轉 result
+      function finishWithTransition(){
+        setPhase('finalizing');
+        setTimeout(()=> setPhase('result'), 650);
+      }
+
+      // 清空排名視覺快取（箭頭、舊座標）
+      function resetRankVisuals(){
+        lastRanksRef.current = {};
+        arrowDirRef.current = {};
+        rectsRef.current = {};
+      }
+
+      // 開始 / 重新開始
+      function start(){
+        window.scrollTo(0, 0)
+        const init = initialPlayers();
+        setPlayers(init);
+        compareCountRef.current = 0;
+        pairIndexRef.current = 0;
+        setPairQueue(makeSwissPairings(init));
+        // 在瑞士制下，N 位選手，決定前 L 名所需要的場次是：(⌈log2​(N)⌉+(K−1))×⌊N/2⌋
+        // 這邊 K=3
+        const N = init.length;
+        setTarget((Math.ceil(Math.log2(N)) + 2) * Math.floor(N / 2));
+        resetRankVisuals();
+        setPhase('duel');
+      }
+
+      // 下一場或重產配對
+      function advanceOrRegen(updated){
+        pairIndexRef.current += 1;
+        if(pairIndexRef.current >= pairQueue.length){
+          if(shouldStop()){ finishWithTransition(); return; }
+          const nextPairs = makeSwissPairings(updated);
+          setPairQueue(nextPairs);
+          pairIndexRef.current = 0;
+        } else {
+          setPairQueue(q=> q.slice());
+        }
+      }
+
+      function onPick(result){
+        if(result === 'finish'){ finishWithTransition(); return; }
+        const pair = currentPair; if(!pair){ return; }
+
+        let updated = players;
+        // BYE：+1 分（不計入 games）
+        if(pair.bye){
+          updated = players.map(p=> p.id===pair.aId ? {...p, points:p.points+1, hadBye:true} : p);
+        } else {
+          const L = players.find(p=> p.id===pair.aId);
+          const R = players.find(p=> p.id===pair.bId);
+          if(!L || !R) return;
+          let sa = result==='left' ? 1 : result==='right' ? 0 : 0.5;
+          const [na, nb] = updateElo(L.rating, R.rating, sa);
+          const pa = (sa===1)?1:(sa===0)?0:0.5; const pb = 1-pa;
+          updated = players.map(p=> {
+            if(p.id===L.id) return {...p, rating: na, games: p.games+1, points: p.points+pa, opponents:[...p.opponents, R.id]};
+            if(p.id===R.id) return {...p, rating: nb, games: p.games+1, points: p.points+pb, opponents:[...p.opponents, L.id]};
+            return p;
+          });
+        }
+
+        compareCountRef.current += 1;
+        setPlayers(updated);
+        if(shouldStop()){ finishWithTransition(); return; }
+        advanceOrRegen(updated);
+      }
+
+      // ---- 即時排名（FLIP 動畫） ----
+      const listRef = useRef(null);
+      const rectsRef = useRef({});
+      const lastRanksRef = useRef({});
+      const arrowDirRef = useRef({});
+
+      useLayoutEffect(()=>{
+        const listEl = listRef.current; if(!listEl) return;
+        const children = Array.from(listEl.querySelectorAll('[data-id]'));
+        const newRects = {}; children.forEach(el => { newRects[el.dataset.id] = el.getBoundingClientRect(); });
+        const prevRects = rectsRef.current;
+        children.forEach(el => {
+          const id = el.dataset.id; const prev = prevRects[id]; const next = newRects[id];
+          if(prev){ const dx = prev.left - next.left; const dy = prev.top - next.top; if(dx||dy){ el.style.transform = `translate(${dx}px, ${dy}px)`; el.classList.add('flip-transition'); requestAnimationFrame(()=>{ el.style.transform=''; }); } }
+        });
+        rectsRef.current = newRects;
+      });
+
+      function LiveRanking({ list }){
+        const items = list.map((p,i)=> ({...p, rank: i+1}));
+        const prevRanks = lastRanksRef.current;
+        items.forEach(it=>{
+          const prev = prevRanks[it.id];
+          if(prev != null && prev !== it.rank){ const dir = (prev - it.rank); arrowDirRef.current[it.id] = dir>0?1:-1; }
+          // else if(arrowDirRef.current[it.id] == null){ arrowDirRef.current[it.id] = 0; }
+          else { arrowDirRef.current[it.id] = 0; }
+        });
+        lastRanksRef.current = Object.fromEntries(items.map(it=> [it.id, it.rank]));
+        const rankClass = (r)=> r===1 ? 'rank-1' : r===2 ? 'rank-2' : r===3 ? 'rank-3' : 'rank-else';
+        return (
+          <div className="glass p-4 mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm md:text-base font-semibold">即時排名</h3>
+              <span className="text-xs text-white/60"></span>
+            </div>
+            <ol ref={listRef} className="space-y-1">
+              {items.map((p)=> {
+                const prev = prevRanks[p.id];
+                const changed = prev != null && prev !== p.rank;
+                const dir = arrowDirRef.current[p.id] || 0;
+                return (
+                  <li key={p.id} data-id={p.id} className={`flex items-center justify-between rounded-md px-2 ${changed ? 'li-changed' : ''}`} style={{ willChange:'transform' }}>
+                    <div className="flex items-center gap-2 py-1">
+                      <span className={`rank-num ${rankClass(p.rank)}`}>{p.rank}</span>
+                      <span className="text-xl">{p.emoji}</span>
+                      <span>{p.name}</span>
+                      {dir !== 0 && (<span className={`ml-2 text-xs fade-in ${dir>0? 'text-green-300' : 'text-red-300'}`}>{dir>0 ? '▲' : '▼'}</span>)}
+                    </div>
+                    {/* 右側：積分 s（Elo e），括號較淡 */}
+                    <div className="text-xs md:text-sm tabular-nums">
+                      <span>積分 {fmtPts(p.points)}</span>
+                      <span className="text-white/60">（Elo {Math.round(p.rating)}）</span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        );
+      }
+
+      const Card = ({ player, onClick }) => (
+        <div className="glass">
+          <button type="button" onClick={onClick} className="choice-btn flex w-full items-center justify-center p-8">
+            <div className="flex flex-col items-center gap-2">
+              <div className="text-6xl">{player.emoji}</div>
+              <div className="text-xl md:text-2xl font-semibold">{player.name}</div>
+            </div>
+          </button>
+        </div>
+      );
+
+      // 複製最終排名（Elo 優先）
+      function copyRanking(){
+        const list = byFinalStanding;
+        const lines = list.map((p,i)=>{
+          const wr = ((eloExpMap[p.id] ?? 0.5)*100).toFixed(1);
+          const elo = Math.round(p.rating);
+          const pts = fmtPts(p.points);
+          const gm  = p.games;
+          return `${i+1}. ${p.name} ${p.emoji}｜勝率 ${wr}%｜Elo ${elo}｜積分 ${pts}｜場數 ${gm}`;
+        });
+        const header = `二選一排序大對決｜最終排名（Elo 優先）`;
+        const text = [header, ...lines].join('\n');
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(text);
+          alert('已複製排名到剪貼簿！');
+        }else{
+          const ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta); ta.select();
+          try{ document.execCommand('copy'); alert('已複製排名到剪貼簿！'); } catch(e){}
+          document.body.removeChild(ta);
+        }
+      }
+
+      // 繼續比賽：把目標上限再加 N=玩家數
+      function continueMatches(){
+        setTarget(t => t + players.length);
+        pairIndexRef.current = 0;
+        setPairQueue(makeSwissPairings(players));
+        setPhase('duel');
+      }
+
+      // ---- Screens ----
+      if(phase === 'intro'){
+        return (
+          <div className="mx-auto max-w-2xl p-6 md:p-10">
+            <header className="mb-8">
+              <h1 className="text-2xl md:text-3xl font-bold">二選一排序大對決</h1>
+              <p className="text-white/80 mt-2">
+                每回合盡量讓同積分的選手互比（瑞士制），同時採用西洋棋競技同規等級分制（Elo 等級分制）計算選手的平均勝率，準備好了嗎？
+              </p>
+            </header>
+            <div className="glass p-4">
+              <ul className="flex flex-wrap gap-2 text-2xl">
+                {PLAYERS.map((f,i)=> (
+                  <li key={f.id+'-'+i} className="glass px-2 py-1">
+                    <span className="mr-1">{f.emoji}</span>
+                    <span className="text-base">{f.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button className="btn-primary" type="button" onClick={start}>開始</button>
+            </div>
+            <footer className="mt-10 text-center text-xs text-white/60">© {new Date().getFullYear()} 二選一排序大對決</footer>
+          </div>
+        );
+      }
+
+      if(phase === 'duel'){
+        const pair = currentPair;
+        const L = pair?.aId ? players.find(p=> p.id===pair.aId) : null;
+        const R = pair?.bId ? players.find(p=> p.id===pair.bId) : null;
+        const { played, progress, target } = computeProgressLinear();
+        return (
+          <div className="mx-auto max-w-3xl p-6 md:p-10">
+            <header className="mb-2 flex items-center justify-between">
+              <h2 className="text-xl md:text-2xl font-semibold">選出你更喜歡的</h2>
+              <button className="btn-secondary" type="button" onClick={finishWithTransition}>提前完成</button>
+            </header>
+            <div className="mb-4">
+              <div className="text-xs text-white/70 flex items-center justify-between">
+                <span>進度</span>
+                <span className="tabular-nums">{played} / {target} 場</span>
+              </div>
+              <div className="bar mt-1"><div style={{width: `${Math.round((progress||0)*100)}%`, transition:'width .35s ease'}}></div></div>
+            </div>
+
+            {pair?.bye ? (
+              <div className="glass p-6 text-center">
+                <div className="text-lg">本回合有人輪空（BYE）</div>
+                <div className="mt-2 text-white/80">輪空者：{L?.emoji} {L?.name} 自動獲得 1 分</div>
+                <div className="mt-4">
+                  <button className="btn-primary" type="button" onClick={()=> onPick('tie')}>下一場</button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {L && <Card player={L} onClick={()=> onPick('left')} />}
+                {R && <Card player={R} onClick={()=> onPick('right')} />}
+              </div>
+            )}
+
+            {!pair?.bye && (
+              <div className="flex items-center justify-center mt-4">
+                <button className="btn-secondary" type="button" onClick={()=> onPick('tie')}>選不出來（平手）</button>
+              </div>
+            )}
+            <LiveRanking list={byLiveStanding} />
+          </div>
+        );
+      }
+
+      if(phase === 'finalizing'){
+        // 移除不明所以的一條線，改為簡潔的旋轉指示
+        return (
+          <div className="mx-auto max-w-3xl p-6 md:p-10">
+            <div className="glass p-10 text-center">
+              <div className="text-lg md:text-xl font-semibold">正在結算…</div>
+              <div className="text-white/70 text-sm mt-2">彙整等級分與積分，準備最終排名</div>
+              <div className="h-8 w-8 rounded-full border-2 border-white/25 border-t-white/80 animate-spin mx-auto mt-6"></div>
+            </div>
+          </div>
+        );
+      }
+
+      // result
+      return (
+        <div className="mx-auto max-w-3xl p-6 md:p-10">
+          <header className="mb-6">
+            <h2 className="text-xl md:text-2xl font-semibold">最終排名</h2>
+            <p className="text-white/70 text-sm">
+              依等級分制計算選手對上其他選手的平均勝率，並以此排序。可以點擊「複製排名」複製詳細資料。
+            </p>
+          </header>
+          <div id="result-container" className="glass p-6">
+            <ol className="space-y-2">
+              {byFinalStanding.map((p, i) => {
+                const rank = i+1;
+                const wr = Math.round((eloExpMap[p.id] ?? 0.5) * 100); // Elo 期望勝率 (%)
+                const isTop3 = rank <= 3;
+                return (
+                  <li key={p.id+'-'+i} className="glass p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 flex justify-end">
+                        <span className={'rank-badge ' + (isTop3 ? 'gold' : '')}>{rank}</span>
+                      </div>
+                      <div className="text-2xl">{p.emoji}</div>
+                      <div className="text-base md:text-lg font-medium">{p.name}</div>
+                    </div>
+                    {/* 右側：勝率（Elo｜積分） */}
+                    <div className="text-sm tabular-nums">
+                      <span>勝率 {wr}% </span>
+                      {/* <span className="text-white/60">｜Elo {Math.round(p.rating)}｜積分 {fmtPts(p.points)}</span> */}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+          <div className="mt-6 flex gap-2 flex-wrap">
+            <button className="btn-primary" type="button" onClick={copyRanking}>複製排名</button>
+            <button className="btn-secondary" type="button" onClick={continueMatches}>繼續比賽</button>
+            <button className="btn-secondary" type="button" onClick={start}>重新開始</button>
+          </div>
+          <footer className="mt-10 text-center text-xs text-white/60">© {new Date().getFullYear()} 二選一排序大對決</footer>
+        </div>
+      );
+    }
+
+    const container = document.getElementById('root');
+    const root = (window.ReactDOM && ReactDOM.createRoot)
+      ? ReactDOM.createRoot(container)
+      : null;
+    if (!root && window.ReactDOM && ReactDOM.render) {
+      ReactDOM.render(<PlayerRanker />, container);
+    } else if (root) {
+      root.render(<PlayerRanker />);
+    } else {
+      console.error('React DOM 未載入完整，請檢查 CDN。');
+    }
+  </script>
+</body>
+</html>
