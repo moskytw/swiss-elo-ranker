@@ -306,7 +306,7 @@
         compareCountRef.current = 0;
         pairIndexRef.current = 0;
         setPairQueue(makeSwissPairings(init));
-        // 在瑞士制下，N 位選手，決定前 L 名所需要的場次是：(⌈log2​(N)⌉+(K−1))×⌊N/2⌋
+        // 在瑞士制下，N 位選手，決定前 K 名所需要的場次是：(⌈log2​(N)⌉+(K−1))×⌊N/2⌋
         // 這邊 K=3
         const N = init.length;
         setTarget((Math.ceil(Math.log2(N)) + 2) * Math.floor(N / 2));
